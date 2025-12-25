@@ -8,6 +8,13 @@ from typing import Any
 from browser_use import ChatAnthropic, ChatOpenAI
 from browser_use.llm.messages import BaseMessage
 from browser_use.llm.openrouter.chat import ChatOpenRouter
+from browser_use.llm.openrouter.serializer import OpenRouterMessageSerializer
+from browser_use.llm.schema import SchemaOptimizer
+from browser_use.llm.views import ChatInvokeCompletion
+from openai import AsyncOpenAI
+from openai.types.shared_params.response_format_json_schema import (
+    ResponseFormatJSONSchema,
+)
 
 from engagerunner.models import LLMConfig
 
@@ -37,10 +44,6 @@ class MarkdownStrippingChatOpenRouter(ChatOpenRouter):
                 logger.debug("JSON validation failed, attempting markdown strip: %s", e)
 
                 # Get the raw response by calling OpenAI client directly
-                from openai import AsyncOpenAI
-                from browser_use.llm.openrouter.serializer import OpenRouterMessageSerializer
-                from browser_use.llm.schema import SchemaOptimizer
-
                 openrouter_messages = OpenRouterMessageSerializer.serialize_messages(messages)
 
                 # Create client with same settings
@@ -51,12 +54,11 @@ class MarkdownStrippingChatOpenRouter(ChatOpenRouter):
 
                 schema = SchemaOptimizer.create_optimized_json_schema(output_format)
                 response_format_schema = {
-                    'name': 'agent_output',
-                    'strict': True,
-                    'schema': schema,
+                    "name": "agent_output",
+                    "strict": True,
+                    "schema": schema,
                 }
 
-                from openai.types.shared_params.response_format_json_schema import ResponseFormatJSONSchema
                 response = await client.chat.completions.create(
                     model=self.model,
                     messages=openrouter_messages,
@@ -64,8 +66,8 @@ class MarkdownStrippingChatOpenRouter(ChatOpenRouter):
                     top_p=self.top_p,
                     seed=self.seed,
                     response_format=ResponseFormatJSONSchema(
-                        json_schema=response_format_schema,
-                        type='json_schema',
+                        json_schema=response_format_schema,  # type: ignore[typeddict-item]
+                        type="json_schema",
                     ),
                     extra_headers={"HTTP-Referer": "https://engagerunner.com"},
                 )
@@ -79,13 +81,12 @@ class MarkdownStrippingChatOpenRouter(ChatOpenRouter):
 
                 # Try parsing with stripped content
                 try:
-                    from browser_use.llm.views import ChatInvokeCompletion
-                    parsed = output_format.model_validate_json(stripped)
+                    parsed = output_format.model_validate_json(stripped)  # type: ignore[attr-defined]
                     usage = self._get_usage(response)
                     logger.info("Successfully parsed JSON after markdown stripping")
                     return ChatInvokeCompletion(completion=parsed, usage=usage)
-                except Exception as parse_error:
-                    logger.error("Failed to parse even after stripping: %s", parse_error)
+                except Exception:
+                    logger.exception("Failed to parse even after stripping")
                     raise
 
             # Re-raise if not a fixable JSON error
@@ -102,8 +103,8 @@ class MarkdownStrippingChatOpenRouter(ChatOpenRouter):
             Stripped text with just the JSON content
         """
         # Remove ```json and ``` markers
-        text = re.sub(r'^```(?:json)?\s*\n', '', text, flags=re.MULTILINE)
-        text = re.sub(r'\n```\s*$', '', text, flags=re.MULTILINE)
+        text = re.sub(r"^```(?:json)?\s*\n", "", text, flags=re.MULTILINE)
+        text = re.sub(r"\n```\s*$", "", text, flags=re.MULTILINE)
         return text.strip()
 
 
@@ -165,10 +166,11 @@ class RetryLLM:
         logger.warning("Switching to fallback model: %s", next_model)
         try:
             self.llm = self._create_llm_instance(next_model)
-            return True
         except Exception:
             logger.exception("Failed to create LLM instance for model: %s", next_model)
             return self.try_next_model()
+        else:
+            return True
 
     def __getattr__(self, name: str) -> Any:
         """Delegate all attribute access to the underlying LLM instance."""

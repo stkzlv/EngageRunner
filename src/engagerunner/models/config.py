@@ -23,7 +23,9 @@ class YamlConfigSettingsSource(PydanticBaseSettingsSource):
         self.yaml_file = Path(yaml_file) if yaml_file else Path("config.yaml")
 
     def get_field_value(  # noqa: PLR6301
-        self, field: Any, field_name: str  # noqa: ARG002
+        self,
+        field: Any,
+        field_name: str,  # noqa: ARG002
     ) -> tuple[Any, str, bool]:
         """Not used - we load all data at once."""
         return None, "", False

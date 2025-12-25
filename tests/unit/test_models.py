@@ -40,7 +40,7 @@ def test_engagement_task_creation() -> None:
     """Test creating an EngagementTask."""
     task = EngagementTask(
         platform=Platform.YOUTUBE,
-        video_url="https://youtube.com/watch?v=test",
+        video_url="https://youtube.com/watch?v=test",  # type: ignore[arg-type]
         action=ActionType.READ,
         max_comments=10,
     )

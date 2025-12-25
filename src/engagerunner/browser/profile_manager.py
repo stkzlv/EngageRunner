@@ -39,7 +39,7 @@ class ProfileManager:
 
         # Expand ~ and split into user_data_dir and profile_directory
         if chrome_profile_path:
-            expanded_path = chrome_profile_path.expanduser()
+            expanded_path = chrome_profile_path.expanduser()  # noqa: ASYNC240
             user_data_dir = expanded_path.parent
             profile_dir = expanded_path.name
         else:

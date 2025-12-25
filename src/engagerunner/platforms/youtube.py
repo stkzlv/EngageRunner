@@ -31,7 +31,7 @@ class YouTubePlatform(BasePlatform):
         """
         if not isinstance(self.llm, RetryLLM):
             # Direct LLM without retry support
-            agent = Agent(task=task, llm=self.llm, browser=self.browser)
+            agent = Agent(task=task, llm=self.llm, browser=self.browser)  # type: ignore[var-annotated]
             return await agent.run()
 
         max_retries = self.llm.config.max_retries
@@ -39,23 +39,27 @@ class YouTubePlatform(BasePlatform):
 
         for attempt in range(max_retries):
             try:
-                logger.info("Agent attempt %d/%d with model index %d", attempt + 1, max_retries, self.llm.current_model_index)
-                agent = Agent(task=task, llm=self.llm, browser=self.browser)
-                result = await agent.run()
-                return result
+                logger.info(
+                    "Agent attempt %d/%d with model index %d",
+                    attempt + 1,
+                    max_retries,
+                    self.llm.current_model_index,
+                )
+                agent = Agent(task=task, llm=self.llm, browser=self.browser)  # type: ignore[arg-type]
+                return await agent.run()
             except Exception as e:
                 last_error = e
                 logger.warning("Agent failed (attempt %d/%d): %s", attempt + 1, max_retries, e)
 
                 if attempt < max_retries - 1:
-                    if self.llm.try_next_model():
-                        logger.info("Retrying with fallback model...")
-                        continue
-                    logger.error("No more models available")
-                    break
+                    if not self.llm.try_next_model():
+                        logger.exception("No more models available")
+                        break
+                    logger.info("Retrying with fallback model...")
+                    continue
 
         logger.error("All retry attempts exhausted")
-        raise last_error if last_error else RuntimeError("Agent execution failed")
+        raise last_error or RuntimeError("Agent execution failed")
 
     async def list_videos(self, channel_url: str, max_videos: int = 20) -> list[dict[str, Any]]:
         """List videos from a YouTube channel.
@@ -93,7 +97,9 @@ class YouTubePlatform(BasePlatform):
             url: YouTube video URL
         """
         logger.info("Navigating to %s", url)
-        await self._run_agent_with_retry(f"Navigate to {url} and wait for the page to load completely")
+        await self._run_agent_with_retry(
+            f"Navigate to {url} and wait for the page to load completely"
+        )
 
     async def read_comments(self, url: str, max_comments: int = 10) -> list[Comment]:
         """Read comments from a YouTube video.
