@@ -2,134 +2,105 @@
 
 ## Overview
 
-AI-powered agent for social media engagement automation using the browser-use library. The agent opens social media platforms with specific browser profiles, reads comments, and responds to them.
+AI-powered social media engagement automation. Read and respond to comments across platforms using browser automation and LLM intelligence.
 
-## Technical Stack
+**Tech Stack**: Python 3.13, uv, browser-use, OpenRouter (free models)
 
-| Component | Technology |
-|-----------|------------|
-| Language | Python 3.13 |
-| Package Manager | uv |
-| Browser Automation | browser-use (Playwright-based) |
-| LLM | Claude / GPT (configurable) |
+## What It Does
 
-## Core Functionality
+**Read Comments**
+- Navigate to videos/posts using saved browser profiles
+- Extract comments with author, text, timestamp, reply count
+- Support YouTube (MVP), Instagram, TikTok (future)
 
-### 1. Profile Management
-- Load specific Chrome profiles with pre-saved credentials (cookies/sessions)
-- Support multiple named profiles for different accounts
-- Configurable profile paths via settings
-
-### 2. Platform Navigation
-- Navigate to TikTok, Instagram, YouTube creator dashboards/comment sections
-- Handle dynamic page loading (infinite scroll, lazy load)
-- Wait for page elements to be interactive
-
-### 3. Comment Reading
-- Extract comments from posts/videos with metadata:
-  - Author username
-  - Timestamp
-  - Comment text
-  - Reply count (if available)
-- Support pagination/scroll-based loading
-- Return structured data (Pydantic models)
-
-### 4. Comment Response
-- Post replies to specific comments
-- Support template-based responses
-- Support LLM-generated contextual responses
+**Respond to Comments**
+- Post replies using templates or AI-generated responses
 - Verify successful submission
 
-### 5. Session Persistence
-- Save browser state (cookies, localStorage) between runs
-- Restore sessions to avoid re-authentication
+**Manage Profiles**
+- Use Chrome profiles with saved logins (cookies/sessions)
+- Support multiple accounts per platform
 
-## Platform-Specific Details
+**Persist Sessions**
+- Maintain browser state between runs
+- No repeated logins required
 
-| Platform | Login Method | Comment Location | Known Challenges |
-|----------|--------------|------------------|------------------|
-| YouTube | Google SSO (profile) | Video page → Comments section | Dynamic loading, nested replies |
-| Instagram | Session cookies | Post page → Comments | Aggressive bot detection |
-| TikTok | Session cookies | Video page → Comments | Frequent UI changes |
+**Browser Session Management**
+- **CRITICAL**: Only close Chrome sessions created by the tool
+- Never close pre-existing Chrome sessions
+- User may have Chrome already running with same profile
 
-## First Iteration Scope
+## MVP Scope (Iteration 1)
 
-### In Scope
-1. **Single platform focus** - YouTube only (most stable structure)
-2. **Read-only validation** - Comment extraction before enabling responses
-3. **Manual login** - Use pre-authenticated browser profile (no automated login)
-4. **Simple responses** - Template-based or LLM-generated single replies
-5. **CLI interface** - Command-line operation
+**Included**:
+- YouTube comment reading and responding
+- CLI interface
+- Pre-authenticated browser profiles
+- Template-based or LLM responses
 
-### Out of Scope
-- Multi-account management
-- Automated login / 2FA handling
-- Sentiment analysis / filtering
-- Response scheduling / queuing
-- Rate limit handling / backoff
-- Instagram and TikTok support
-- Web UI / dashboard
+**Excluded**:
+- Automated login/2FA
+- Multi-platform support
+- Sentiment analysis
+- Rate limiting
+- Web UI
+
+## Success Criteria
+
+✅ Load Chrome profile with YouTube login
+✅ Navigate to video URL
+✅ Extract 10+ comments with metadata
+✅ Post reply to specific comment
+✅ Persist session for reuse
 
 ## Configuration
 
+Config hierarchy: **CLI args → env vars → YAML → defaults**
+
+### LLM Provider
+
+**Default**: OpenRouter with free models (no cost, unified API for 400+ models)
+
+**Supported providers**:
+- `openrouter` (default) - Access free models via OpenRouter API
+- `anthropic` - Direct Anthropic API (requires paid API key)
+- `openai` - Direct OpenAI API (requires paid API key)
+
+**Free models available** (via OpenRouter):
+- `meta-llama/llama-4-maverick:free` (default) - 400B MoE, 256K context
+- `meta-llama/llama-4-scout:free` - 109B MoE, 512K context
+- `mistralai/mistral-small-3.1-24b-instruct:free` - 24B, 96K context
+- `deepseek/deepseek-chat-v3-0324:free` - High-quality reasoning
+
 ```yaml
-# Example config structure
+# config.yaml
 profiles:
   youtube-main:
-    platform: youtube
     chrome_profile_path: ~/.config/google-chrome/Profile1
 
 llm:
-  provider: anthropic
-  model: claude-sonnet-4-20250514
+  provider: openrouter  # default
+  model: meta-llama/llama-4-maverick:free  # default free model
 
 settings:
   headless: false
   timeout: 30
 ```
 
-## Data Models
+```bash
+# .env (secrets only, gitignored)
+# OpenRouter (free models, recommended)
+OPENROUTER_API_KEY=sk-or-v1-...
 
-### Comment
-```python
-class Comment:
-    id: str
-    author: str
-    text: str
-    timestamp: datetime
-    reply_count: int
-    platform: Literal["youtube", "instagram", "tiktok"]
+# Alternative providers (optional)
+ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...
 ```
 
-### EngagementTask
-```python
-class EngagementTask:
-    platform: str
-    video_url: str
-    action: Literal["read", "respond"]
-    response_template: str | None
-```
+### Why OpenRouter?
 
-## Success Criteria
-
-1. Successfully load a Chrome profile with saved YouTube login
-2. Navigate to a specified video URL
-3. Extract at least 10 comments with accurate metadata
-4. Post a reply to a specific comment (manual trigger)
-5. Persist session for reuse
-
-## Dependencies
-
-```toml
-[project]
-dependencies = [
-    "browser-use>=1.0.0",
-    "pydantic>=2.0",
-    "python-dotenv",
-]
-```
-
-## References
-
-- [browser-use GitHub](https://github.com/browser-use/browser-use)
-- [browser-use Documentation](https://docs.browser-use.com)
+- **Free models**: No API costs for experimentation
+- **Unified API**: Access 400+ models with one key
+- **OpenAI-compatible**: Drop-in replacement for OpenAI SDK
+- **Fallback support**: Switch providers without code changes
+- **Privacy options**: Control whether requests are logged
