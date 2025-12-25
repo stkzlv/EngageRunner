@@ -1,39 +1,27 @@
 """Configuration loading and management."""
 
-import os
 from pathlib import Path
 
 import yaml
-from dotenv import load_dotenv
 
 from engagerunner.models import Config
 
-# Load environment variables
-load_dotenv()
 
+def load_config() -> Config:
+    """Load configuration using Pydantic Settings.
 
-def load_config(config_path: Path | str = "config.yaml") -> Config:
-    """Load configuration from YAML file and environment variables.
-
-    Args:
-        config_path: Path to configuration file
+    Loads config with the following priority (highest to lowest):
+    1. Explicitly passed values (CLI args via init)
+    2. Environment variables (ENGAGERUNNER_*, LLM_*, ANTHROPIC_API_KEY, OPENAI_API_KEY)
+    3. .env file
+    4. YAML config file (config.yaml)
+    5. Default values
 
     Returns:
-        Config object
+        Config object with merged settings from all sources
     """
-    config_file = Path(config_path)
-
-    if config_file.exists():
-        with Path(config_file).open(encoding="utf-8") as f:
-            data = yaml.safe_load(f) or {}
-    else:
-        data = {}
-
-    # Override with environment variables if present
-    if "llm" in data and (api_key := os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY")):
-        data["llm"]["api_key"] = api_key
-
-    return Config(**data)
+    # Config will automatically load from env vars, .env file, and YAML
+    return Config()
 
 
 def create_default_config(output_path: Path | str = "config.yaml") -> None:
@@ -49,10 +37,13 @@ def create_default_config(output_path: Path | str = "config.yaml") -> None:
                 "chrome_profile_path": "~/.config/google-chrome/Profile1",
             }
         },
-        "llm": {"provider": "anthropic", "model": "claude-sonnet-4-20250514"},
+        "llm": {
+            "provider": "openrouter",
+            "model": "meta-llama/llama-4-maverick:free",
+        },
         "settings": {"headless": False, "timeout": 30},
     }
 
     output_file = Path(output_path)
-    with Path(output_file).open("w", encoding="utf-8") as f:
+    with output_file.open("w", encoding="utf-8") as f:
         yaml.dump(default_config, f, default_flow_style=False, sort_keys=False)

@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 
-from browser_use import Browser, BrowserConfig
+from browser_use import Browser
 
 logger = logging.getLogger(__name__)
 
@@ -37,24 +37,29 @@ class ProfileManager:
         if profile_name in self._browsers:
             return self._browsers[profile_name]
 
-        config = BrowserConfig(
-            headless=self.headless,
-            disable_security=False,
-            extra_chromium_args=[
-                f"--user-data-dir={chrome_profile_path}" if chrome_profile_path else "",
-            ],
-        )
+        # Expand ~ and split into user_data_dir and profile_directory
+        if chrome_profile_path:
+            expanded_path = chrome_profile_path.expanduser()
+            user_data_dir = expanded_path.parent
+            profile_dir = expanded_path.name
+        else:
+            user_data_dir = None
+            profile_dir = None
 
-        browser = Browser(config=config)  # type: ignore[call-overload]
+        browser = Browser(
+            headless=self.headless,
+            user_data_dir=user_data_dir,
+            profile_directory=profile_dir,
+        )
         self._browsers[profile_name] = browser
         logger.info("Created browser instance '%s'", profile_name)
-        return browser  # type: ignore[no-any-return]
+        return browser
 
     async def close_all(self) -> None:
         """Close all browser instances."""
         for name, browser in self._browsers.items():
             try:
-                await browser.close()  # type: ignore[attr-defined]
+                await browser.stop()
                 logger.info("Closed browser '%s'", name)
             except Exception:
                 logger.exception("Error closing browser '%s'", name)

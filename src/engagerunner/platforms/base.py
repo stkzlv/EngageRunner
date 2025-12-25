@@ -1,6 +1,7 @@
 """Base platform interface."""
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 from browser_use import Browser
 
@@ -12,13 +13,15 @@ class BasePlatform(ABC):
 
     platform: Platform
 
-    def __init__(self, browser: Browser) -> None:
+    def __init__(self, browser: Browser, llm: Any) -> None:
         """Initialize platform adapter.
 
         Args:
             browser: Browser instance to use
+            llm: Language model instance (ChatAnthropic or ChatOpenAI)
         """
         self.browser = browser
+        self.llm = llm
 
     @abstractmethod
     async def navigate_to_url(self, url: str) -> None:
