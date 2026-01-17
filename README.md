@@ -1,158 +1,88 @@
 # EngageRunner
 
-AI-powered agent for social media engagement automation using browser-use library. Automates reading and responding to comments on YouTube (with Instagram and TikTok planned).
-
-## Table of Contents
-
-- [Description](#description)
-- [Features](#features)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Configuration](#configuration)
-- [Contributing](#contributing)
-- [License](#license)
-
-## Description
-
-EngageRunner is a Python-based automation tool that uses AI agents to interact with social media platforms. It leverages the browser-use library for realistic browser automation and supports multiple LLM providers (Claude, GPT) for intelligent comment responses.
-
-**Current Status:** v0.1.0 - YouTube comment reading (first iteration)
+Local automation tool for YouTube channel engagement. Likes and hearts comments on your videos using your existing Chrome profile.
 
 ## Features
 
-### Current (v0.1.0)
-- ✅ YouTube comment extraction with metadata (author, text, timestamp)
-- ✅ Browser profile management with session persistence
-- ✅ CLI interface for command-line operation
-- ✅ Configurable LLM provider support (Claude/GPT)
+- **Heart comments** - Channel owner's "thank you" badge (default action)
+- **Like comments** - Standard thumbs-up (optional)
+- **YouTube Shorts support** - Automatic fallback for Shorts comment panels
+- **Rate limiting** - Randomized delays to avoid detection
+- **State tracking** - Never processes the same comment twice
+- **Dry-run mode** - Preview actions without executing
 
-### Planned
-- 🔄 Automated comment responses (template and LLM-generated)
-- 🔄 Instagram and TikTok platform support
-- 🔄 Multi-account management
-- 🔄 Sentiment analysis and filtering
-- 🔄 Response scheduling and rate limiting
-
-## Installation
+## Quick Start
 
 ### Prerequisites
 - Python 3.13+
-- uv (package manager)
-- Chrome browser with saved login sessions
+- [uv](https://docs.astral.sh/uv/) package manager
+- Chrome browser with your YouTube account logged in
 
-### Steps
+### Installation
 
-1. Clone the repository:
 ```bash
-git clone https://github.com/YOUR-USERNAME/EngageRunner.git
+git clone https://github.com/stkzlv/EngageRunner.git
 cd EngageRunner
-```
-
-2. Install dependencies:
-```bash
 uv sync
-uv run playwright install
+uv run playwright install chromium
 ```
 
-3. Create configuration file:
+### Setup Chrome Profile
+
+Chrome 136+ requires a separate profile directory for remote debugging:
+
 ```bash
-uv run engagerunner init
+# One-time setup: copy your Chrome profile
+mkdir -p ~/.engagerunner/chrome-profile
+cp -r ~/.config/google-chrome/Default ~/.engagerunner/chrome-profile/
+
+# Start Chrome with remote debugging
+google-chrome --remote-debugging-port=9222 \
+  --user-data-dir=$HOME/.engagerunner/chrome-profile
 ```
 
-4. Set up environment variables:
+### Usage
+
 ```bash
-# Create .env file
-echo "ANTHROPIC_API_KEY=your_key_here" > .env
-```
+# List recent videos from your channel
+uv run engagerunner list-videos --max 10
 
-## Usage
-
-### Initialize Configuration
-
-Create a default `config.yaml`:
-```bash
-uv run engagerunner init
-```
-
-### Read Comments
-
-Extract comments from a YouTube video:
-```bash
+# Read comments from a video
 uv run engagerunner read "https://youtube.com/watch?v=VIDEO_ID" --max 20
-```
 
-### CLI Options
+# Engage with comments (heart them)
+uv run engagerunner engage -s simple_engagement
 
-```bash
-# Read comments with custom profile
-uv run engagerunner read URL --profile youtube-main --max 10
-
-# Show version
-uv run engagerunner --version
-
-# Help
-uv run engagerunner --help
+# Preview without taking action
+uv run engagerunner engage -s simple_engagement --dry-run
 ```
 
 ## Configuration
 
-Edit `config.yaml` to customize settings:
+Edit `config.yaml`:
 
 ```yaml
 profiles:
   youtube-main:
     platform: youtube
-    chrome_profile_path: ~/.config/google-chrome/Profile1
+    channel_url: https://www.youtube.com/@YourChannel
 
-llm:
-  provider: anthropic
-  model: claude-sonnet-4-20250514
-  # API key loaded from ANTHROPIC_API_KEY env var
-
-settings:
-  headless: false  # Set to true for headless operation
-  timeout: 30
+scenarios:
+  simple_engagement:
+    discovery:
+      method: recent_days
+      limit: 7
+    actions:
+      - type: heart  # or "like"
+    max_comments_per_video: 10
 ```
 
-### Browser Profile Setup
+## Documentation
 
-1. Open Chrome with a specific profile
-2. Log in to YouTube and save credentials
-3. Find profile path:
-   - Linux: `~/.config/google-chrome/Profile X`
-   - macOS: `~/Library/Application Support/Google/Chrome/Profile X`
-   - Windows: `%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Profile X`
-4. Update `chrome_profile_path` in config
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, workflow, and guidelines.
-
-Quick start:
-```bash
-# Install dev dependencies
-uv sync --group dev
-
-# Run tests
-uv run pytest
-
-# Lint code
-uv run ruff check .
-uv run mypy .
-```
-
-## Deployment
-
-Not yet applicable - this is a local automation tool. See [VERSIONING.md](VERSIONING.md) for release roadmap.
+- [Requirements](REQUIREMENTS.md) - MVP scope and success criteria
+- [Contributing](CONTRIBUTING.md) - Development workflow
+- [Versioning](VERSIONING.md) - Release process
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## Resources
-
-- [Documentation](docs/) (coming soon)
-- [Requirements](REQUIREMENTS.md)
-- [Contributing Guide](CONTRIBUTING.md)
-- [Versioning Strategy](VERSIONING.md)
-- [browser-use Documentation](https://docs.browser-use.com)
+MIT

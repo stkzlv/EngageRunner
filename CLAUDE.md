@@ -2,14 +2,14 @@
 
 ## Project Overview
 
-**EngageRunner** is an AI-powered social media engagement automation tool that uses browser-use for realistic browser automation. It automates reading and responding to comments on YouTube (with Instagram and TikTok planned).
+**EngageRunner** is a local automation tool for YouTube channel engagement. It hearts and likes comments on your videos using direct Playwright automation and your existing Chrome profile.
 
 **Core Philosophy**:
 - **"Bring Your Own Profile" (BYOP):** No login scripts or 2FA handling. Uses your legitimate, logged-in Chrome session.
 - **Safety First:** Actions are rate-limited, randomized, and tracked to prevent spam detection.
 - **Local Execution:** Everything runs locally; credentials never leave your Chrome profile.
 
-**Tech Stack**: Python 3.13+, uv, browser-use, Playwright, Pydantic, PyYAML.
+**Tech Stack**: Python 3.13+, uv, Playwright, Pydantic, PyYAML.
 
 ---
 

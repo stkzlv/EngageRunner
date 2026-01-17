@@ -8,18 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- LLM provider factory with automatic model fallback and retry logic
-- Markdown stripping wrapper for free OpenRouter models (Gemini compatibility)
-- YouTube platform integration with automated engagement
-- Browser profile management with Playwright
-- CLI commands: `engage`, `auto-engage`, `list-videos`
-- YAML configuration support
-- Comprehensive linting setup (ruff, mypy, bandit)
-- Unit test foundation with pytest
+- Heart action for channel owners (default engagement action)
+- YouTube Shorts support with automatic fallback to watch URL
+- Direct Playwright automation (no LLM required for MVP actions)
+- Chrome profile setup documentation for Chrome 136+
+- Dry-run mode for previewing actions
+- Rate limiting with randomized delays
+- State tracking to avoid duplicate processing
+- CLI commands: `engage`, `list-videos`, `read`
+- Unit and integration tests (29 tests, 66% coverage)
 - CI/CD workflows (CI, Security, Release)
 
 ### Changed
-- Python version to 3.13
-- Dependency management to uv
+- Refactored from browser-use to direct Playwright automation
+- Default action changed from like to heart
+- Browser connection via CDP instead of launching new instance
+
+### Removed
+- LLM dependency for MVP actions (like/heart)
+- `auto-engage` command (replaced by `engage` with scenarios)
 
 [Unreleased]: https://github.com/stkzlv/EngageRunner/compare/main...HEAD
