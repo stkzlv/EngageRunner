@@ -1,32 +1,26 @@
 profiles:
-  youtube-stealtech:
+  youtube-main:
     platform: youtube
     chrome_profile_path: ~/.config/google-chrome/stealtechhq@gmail.com
-    channel_url: https://www.youtube.com/channel/UCbsh6iFWtTsyIb2tUJefkMw
-    handle: StealTech-r6b
-    auto_react: true
-    reaction_emoji: "👍"
-
-  instagram-stealtech:
-    platform: instagram
-    chrome_profile_path: ~/.config/google-chrome/stealtechhq@gmail.com
-    profile_url: https://www.instagram.com/stealtechhq/
-
-  tiktok-stealtech:
-    platform: tiktok
-    chrome_profile_path: ~/.config/google-chrome/stealtechhq@gmail.com
-    profile_url: https://www.tiktok.com/@stealtech?lang=en
-
+    channel_url: https://www.youtube.com/@StealTech-r6b
 llm:
   provider: openrouter
   model: google/gemini-2.0-flash-exp:free
-  fallback_models:
-    - google/gemini-2.0-flash-thinking-exp:free
-    - google/gemini-exp-1206:free
-    - qwen/qvq-72b-preview:free
-    - meta-llama/llama-3.3-70b-instruct:free
-  max_retries: 5
-
 settings:
   headless: false
   timeout: 30
+defaults:
+  profile_name: youtube-main
+  max_comments: 10
+  max_videos: 20
+  max_videos_auto_engage: 5
+  max_comments_auto_engage: 10
+scenarios:
+  simple_engagement:
+    discovery:
+      method: recent_days
+      limit: 7
+    actions:
+      - type: like
+      - type: heart
+    max_comments_per_video: 10

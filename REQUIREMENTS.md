@@ -1,106 +1,90 @@
-# EngageRunner - Requirements
+# EngageRunner - Project Requirements
 
-## Overview
+## 1. Overview
+**EngageRunner** is a local, AI-powered automation agent designed to manage your personal brand's engagement on social media. It acts as a "virtual employee," engaging with your audience using your **existing, pre-authenticated Chrome profile**.
 
-AI-powered social media engagement automation. Read and respond to comments across platforms using browser automation and LLM intelligence.
+**Core Philosophy:**
+*   **"Bring Your Own Profile" (BYOP):** No complex login scripts or 2FA handling. We piggyback on your legitimate, logged-in session.
+*   **Safety First:** Actions are rate-limited, randomized, and tracked to prevent spam detection.
+*   **Local Execution:** Everything runs on your machine; your credentials never leave your local Chrome profile.
 
-**Tech Stack**: Python 3.13, uv, browser-use, OpenRouter (free models)
+---
 
-## What It Does
+## 2. Current Scope: MVP (Iteration 1)
+The initial release focuses on **YouTube Comment Maintenance**—ensuring every fan comment gets a reaction without you spending hours scrolling.
 
-**Read Comments**
-- Navigate to videos/posts using saved browser profiles
-- Extract comments with author, text, timestamp, reply count
-- Support YouTube (MVP), Instagram, TikTok (future)
+### ✅ Included Features
+*   **Platform:** YouTube only.
+*   **Identity:** Uses your local Chrome profile (e.g., `stealtechhq@gmail.com`).
+*   **Discovery Methods:**
+    *   **Recent Posts:** Check comments on the last $N$ videos.
+    *   **Time-Based:** Check comments on videos posted in the last $N$ days.
+*   **Engagement Actions:**
+    *   **Reactions:** Like (👍) and Heart (❤️).
+    *   *Note: No text replies in MVP to minimize risk.*
+*   **Safety & Logic:**
+    *   **Timestamp Parsing:** accurately identify "2 hours ago" vs "2 years ago".
+    *   **Rate Limiting:** Enforced delays (randomized 2-5s) between actions.
+    *   **State Tracking:** Remembers which comments were liked to avoid duplicates.
+    *   **Session Safety:** Connects to existing Chrome debugging port if open, or launches new instance if closed.
 
-**Respond to Comments**
-- Post replies using templates or AI-generated responses
-- Verify successful submission
+### ❌ Excluded from MVP
+*   Text replies (LLM-generated or template).
+*   Instagram/TikTok/LinkedIn support.
+*   "Global" discovery (finding comments on 3-year-old videos).
+*   Web UI (CLI only).
 
-**Manage Profiles**
-- Use Chrome profiles with saved logins (cookies/sessions)
-- Support multiple accounts per platform
+---
 
-**Persist Sessions**
-- Maintain browser state between runs
-- No repeated logins required
+## 3. Future Roadmap
 
-**Browser Session Management**
-- **CRITICAL**: Only close Chrome sessions created by the tool
-- Never close pre-existing Chrome sessions
-- User may have Chrome already running with same profile
+### Phase 2: The Conversationalist
+*   **LLM Replies:** Integration with OpenRouter/Llama for context-aware text replies.
+*   **Approval Queue:** CLI dashboard to review generated replies before posting.
+*   **Templates:** Spintax support (e.g., "{Great|Nice} video!").
 
-## MVP Scope (Iteration 1)
+### Phase 3: Multi-Platform Growth
+*   **Instagram:** Like comments on posts, reply to DMs.
+*   **TikTok:** Engage with trending niche content.
+*   **Cross-Pollination:** Detect "superfans" active across multiple platforms.
 
-**Included**:
-- YouTube comment reading and responding
-- CLI interface
-- Pre-authenticated browser profiles
-- Template-based or LLM responses
+---
 
-**Excluded**:
-- Automated login/2FA
-- Multi-platform support
-- Sentiment analysis
-- Rate limiting
-- Web UI
+## 4. Technical Architecture
 
-## Success Criteria
+**Stack:** `Python 3.13`, `uv` (package manager), `browser-use` (agent control).
 
-✅ Load Chrome profile with YouTube login
-✅ Navigate to video URL
-✅ Extract 10+ comments with metadata
-✅ Post reply to specific comment
-✅ Persist session for reuse
-
-## Configuration
-
-Config hierarchy: **CLI args → env vars → YAML → defaults**
-
-### LLM Provider
-
-**Default**: OpenRouter with free models (no cost, unified API for 400+ models)
-
-**Supported providers**:
-- `openrouter` (default) - Access free models via OpenRouter API
-- `anthropic` - Direct Anthropic API (requires paid API key)
-- `openai` - Direct OpenAI API (requires paid API key)
-
-**Free models available** (via OpenRouter):
-- `meta-llama/llama-4-maverick:free` (default) - 400B MoE, 256K context
-- `meta-llama/llama-4-scout:free` - 109B MoE, 512K context
-- `mistralai/mistral-small-3.1-24b-instruct:free` - 24B, 96K context
-- `deepseek/deepseek-chat-v3-0324:free` - High-quality reasoning
-
+### Configuration (`config.yaml`)
 ```yaml
-# config.yaml
 profiles:
-  youtube-main:
-    chrome_profile_path: ~/.config/google-chrome/Profile1
+  main_identity:
+    platform: youtube
+    chrome_profile: "Default" # or specific profile folder name
+    channel_url: "https://www.youtube.com/@MyChannel"
 
-llm:
-  provider: openrouter  # default
-  model: meta-llama/llama-4-maverick:free  # default free model
+scenarios:
+  daily_maintenance:
+    discovery:
+      method: recent_posts
+      limit: 10 # Check last 10 videos
+    actions:
+      - type: like
+      - type: heart
+    filters:
+      ignore_keywords: ["spam", "promo"]
 
 settings:
-  headless: false
-  timeout: 30
+  rate_limit:
+    enabled: true
+    min_delay: 2.0
+    max_delay: 10.0
+  state_file: "~/.engagerunner/state.json"
 ```
 
-```bash
-# .env (secrets only, gitignored)
-# OpenRouter (free models, recommended)
-OPENROUTER_API_KEY=sk-or-v1-...
+---
 
-# Alternative providers (optional)
-ANTHROPIC_API_KEY=sk-ant-...
-OPENAI_API_KEY=sk-...
-```
-
-### Why OpenRouter?
-
-- **Free models**: No API costs for experimentation
-- **Unified API**: Access 400+ models with one key
-- **OpenAI-compatible**: Drop-in replacement for OpenAI SDK
-- **Fallback support**: Switch providers without code changes
-- **Privacy options**: Control whether requests are logged
+## 5. Success Criteria for MVP
+1.  **Reliable Connection:** Script detects if Chrome is running. If yes, attaches to it. If no, launches it.
+2.  **Accurate Discovery:** Correctly ignores videos/comments older than the configured limit (requires robust "relative time" parsing).
+3.  **No Embarrassing Duplicates:** Never likes the same comment twice, even if the script is restarted.
+4.  **Stealth:** Completes a "daily maintenance" run on 10 videos without triggering YouTube's "Action Unavailable" warning.

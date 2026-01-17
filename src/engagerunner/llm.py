@@ -28,6 +28,16 @@ class MarkdownStrippingChatOpenRouter(ChatOpenRouter):
     Pydantic validation. This wrapper strips the markdown before parsing.
     """
 
+    def __init__(self, http_referer: str | None = None, **kwargs: Any) -> None:
+        """Initialize with optional HTTP referer.
+
+        Args:
+            http_referer: HTTP referer header value
+            **kwargs: Additional arguments for ChatOpenRouter
+        """
+        super().__init__(**kwargs)
+        self.http_referer: str = http_referer or "https://engagerunner.com"
+
     async def ainvoke(
         self,
         messages: list[BaseMessage],
@@ -69,7 +79,7 @@ class MarkdownStrippingChatOpenRouter(ChatOpenRouter):
                         json_schema=response_format_schema,  # type: ignore[typeddict-item]
                         type="json_schema",
                     ),
-                    extra_headers={"HTTP-Referer": "https://engagerunner.com"},
+                    extra_headers={"HTTP-Referer": self.http_referer},
                 )
 
                 if response.choices[0].message.content is None:
@@ -141,7 +151,11 @@ class RetryLLM:
         logger.info("Creating LLM instance with model: %s", model)
 
         if self.config.provider == "openrouter":
-            return MarkdownStrippingChatOpenRouter(model=model, api_key=self.config.api_key)
+            return MarkdownStrippingChatOpenRouter(
+                model=model,
+                api_key=self.config.api_key,
+                http_referer=self.config.http_referer,
+            )
         if self.config.provider == "anthropic":
             os.environ["ANTHROPIC_API_KEY"] = self.config.api_key
             return ChatAnthropic(model=model)

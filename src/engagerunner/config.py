@@ -41,7 +41,17 @@ def create_default_config(output_path: Path | str = "config.yaml") -> None:
             "provider": "openrouter",
             "model": "meta-llama/llama-4-maverick:free",
         },
-        "settings": {"headless": False, "timeout": 30},
+        "settings": {
+            "headless": False,
+            "timeout": 30,
+        },
+        "defaults": {
+            "profile_name": "youtube-main",
+            "max_comments": 10,
+            "max_videos": 20,
+            "max_videos_auto_engage": 5,
+            "max_comments_auto_engage": 10,
+        },
     }
 
     output_file = Path(output_path)

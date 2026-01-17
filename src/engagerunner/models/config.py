@@ -24,7 +24,7 @@ class YamlConfigSettingsSource(PydanticBaseSettingsSource):
 
     def get_field_value(  # noqa: PLR6301
         self,
-        field: Any,
+        field: Any,  # noqa: ARG002
         field_name: str,  # noqa: ARG002
     ) -> tuple[Any, str, bool]:
         """Not used - we load all data at once."""
@@ -65,13 +65,35 @@ class LLMConfig(BaseSettings):
         description="List of fallback models to try if primary model fails",
     )
     max_retries: int = Field(
-        default=3,
+        default=5,
         description="Maximum number of retries per model",
     )
     api_key: str | None = Field(default=None, description="API key (from env if not provided)")
     base_url: str | None = Field(
         default=None,
         description="Custom API base URL (auto-set for OpenRouter if not provided)",
+    )
+    http_referer: str | None = Field(
+        default=None,
+        description="HTTP referer for API requests (auto-set from settings if not provided)",
+    )
+
+
+class Defaults(BaseSettings):
+    """Default values for CLI and operations."""
+
+    model_config = SettingsConfigDict(env_prefix="DEFAULTS_", extra="ignore")
+
+    profile_name: str = Field(
+        default="youtube-main", description="Default browser profile name"
+    )
+    max_comments: int = Field(default=10, description="Default maximum comments to read")
+    max_videos: int = Field(default=20, description="Default maximum videos to list")
+    max_videos_auto_engage: int = Field(
+        default=5, description="Default maximum videos for auto-engage"
+    )
+    max_comments_auto_engage: int = Field(
+        default=10, description="Default maximum comments per video for auto-engage"
     )
 
 
@@ -82,6 +104,56 @@ class Settings(BaseSettings):
 
     headless: bool = Field(default=False, description="Run browser in headless mode")
     timeout: int = Field(default=30, description="Default timeout in seconds")
+    openrouter_base_url: str = Field(
+        default="https://openrouter.ai/api/v1", description="OpenRouter API base URL"
+    )
+    http_referer: str = Field(
+        default="https://engagerunner.com", description="HTTP referer for API requests"
+    )
+    log_format: str = Field(
+        default="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        description="Logging format string",
+    )
+
+
+class DiscoveryMethod(BaseSettings):
+    """Comment discovery configuration."""
+
+    model_config = SettingsConfigDict(extra="ignore")
+
+    method: str = Field(
+        default="recent_posts",
+        description="Discovery method: recent_days, recent_posts, or all_posts",
+    )
+    limit: int = Field(
+        default=10,
+        description="Limit for discovery (days for recent_days, post count for recent_posts)",
+    )
+
+
+class ActionConfig(BaseSettings):
+    """Single action configuration."""
+
+    model_config = SettingsConfigDict(extra="ignore")
+
+    type: str = Field(..., description="Action type: like, heart, reply")
+    template: str | None = Field(default=None, description="Reply template (if type=reply)")
+
+
+class Scenario(BaseSettings):
+    """Engagement scenario configuration."""
+
+    model_config = SettingsConfigDict(extra="ignore")
+
+    discovery: DiscoveryMethod = Field(
+        default_factory=DiscoveryMethod, description="Comment discovery settings"
+    )
+    actions: list[ActionConfig] = Field(
+        default_factory=list, description="List of actions to perform"
+    )
+    max_comments_per_video: int = Field(
+        default=10, description="Maximum comments to process per video"
+    )
 
 
 class BrowserProfile(BaseSettings):
@@ -94,12 +166,10 @@ class BrowserProfile(BaseSettings):
 
     # Optional platform-specific metadata
     channel_url: str | None = Field(default=None, description="YouTube channel URL")
-    handle: str | None = Field(default=None, description="YouTube handle")
-    profile_url: str | None = Field(default=None, description="Instagram/TikTok profile URL")
 
-    # Auto-engagement settings
+    # Auto-engagement settings (deprecated - use scenarios instead)
     auto_react: bool = Field(default=False, description="Automatically react to comments")
-    reaction_emoji: str = Field(default="👍", description="Emoji to use for reactions")
+    reaction_emoji: str = Field(default="like", description="Reaction type to use")
 
 
 class Config(BaseSettings):
@@ -121,8 +191,12 @@ class Config(BaseSettings):
     profiles: dict[str, BrowserProfile] = Field(
         default_factory=dict, description="Named browser profiles"
     )
+    scenarios: dict[str, Scenario] = Field(
+        default_factory=dict, description="Named engagement scenarios"
+    )
     llm: LLMConfig = Field(default_factory=LLMConfig, description="LLM configuration")
     settings: Settings = Field(default_factory=Settings, description="General settings")
+    defaults: Defaults = Field(default_factory=Defaults, description="Default values for CLI")
 
     @classmethod
     def settings_customise_sources(
@@ -176,14 +250,21 @@ class Config(BaseSettings):
                 or os.getenv("OPENAI_API_KEY")
             )
             if api_key:
-                # Create new LLMConfig with updated api_key and auto-configured base_url
+                # Create new LLMConfig with updated api_key and auto-configured base_url/referer
                 base_url = self.llm.base_url
                 if base_url is None and self.llm.provider == "openrouter":
-                    base_url = "https://openrouter.ai/api/v1"
+                    base_url = self.settings.openrouter_base_url
+
+                http_referer = self.llm.http_referer
+                if http_referer is None:
+                    http_referer = self.settings.http_referer
 
                 self.llm = LLMConfig(
                     provider=self.llm.provider,
                     model=self.llm.model,
                     api_key=api_key,
                     base_url=base_url,
+                    http_referer=http_referer,
+                    fallback_models=self.llm.fallback_models,
+                    max_retries=self.llm.max_retries,
                 )
