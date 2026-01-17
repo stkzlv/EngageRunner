@@ -1,15 +1,19 @@
 """Command-line interface for EngageRunner."""
 
+from __future__ import annotations
+
 import argparse
 import asyncio
 import logging
 import sys
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from browser_use import Browser
+from playwright.async_api import async_playwright
 
-from engagerunner import __version__, create_llm
+from engagerunner import __version__
+
+if TYPE_CHECKING:
+    from playwright.async_api import Browser, Page, Playwright
 from engagerunner.browser.controller import ChromeController
 from engagerunner.config import create_default_config, load_config
 from engagerunner.models import ActionType, DiscoveryMethod, EngagementTask, Platform, Scenario
@@ -20,24 +24,28 @@ from engagerunner.utils.state import EngagementState
 logger = logging.getLogger(__name__)
 
 
-def _create_controller(chrome_profile_path: Path) -> ChromeController:
-    """Create a ChromeController with correctly parsed profile path.
-
-    Splits the provided path into user_data_dir and profile_directory
-    to support reusing existing Chrome instances.
+async def get_playwright_page(
+    cdp_url: str,
+) -> tuple[Playwright, Browser, Page]:
+    """Connect Playwright to Chrome via CDP and return a page.
 
     Args:
-        chrome_profile_path: Path to the specific profile directory
-                             (e.g. ~/.config/google-chrome/Profile 1)
+        cdp_url: Chrome DevTools Protocol URL (e.g., http://localhost:9222)
 
     Returns:
-        Configured ChromeController instance
+        Tuple of (playwright, browser, page)
     """
-    expanded_path = chrome_profile_path.expanduser()
-    return ChromeController(
-        user_data_dir=expanded_path.parent,
-        profile_directory=expanded_path.name,
-    )
+    playwright = await async_playwright().start()
+    browser = await playwright.chromium.connect_over_cdp(cdp_url)
+
+    # Get existing page or create new one
+    if browser.contexts and browser.contexts[0].pages:
+        page = browser.contexts[0].pages[0]
+    else:
+        context = await browser.new_context()
+        page = await context.new_page()
+
+    return playwright, browser, page
 
 
 async def list_channel_videos(profile_name: str, max_videos: int) -> None:
@@ -59,16 +67,14 @@ async def list_channel_videos(profile_name: str, max_videos: int) -> None:
         logger.error("Profile '%s' does not have a channel_url configured", profile_name)
         sys.exit(1)
 
-    # Use ChromeController to manage browser session
-    controller = _create_controller(profile.chrome_profile_path)
-
-    llm = create_llm(config.llm)
+    controller = ChromeController()
+    playwright = None
     browser = None
 
     try:
         cdp_url = await controller.ensure_browser()
-        browser = Browser(cdp_url=cdp_url)
-        platform = YouTubePlatform(browser, llm)
+        playwright, browser, page = await get_playwright_page(cdp_url)
+        platform = YouTubePlatform(page)
 
         logger.info("Fetching videos from %s", profile.channel_url)
         videos = await platform.list_videos(profile.channel_url, max_videos)
@@ -81,15 +87,13 @@ async def list_channel_videos(profile_name: str, max_videos: int) -> None:
                 print(f"   Views: {video.get('views', 'N/A')}")
                 print(f"   Posted: {video.get('posted', 'N/A')}")
         else:
-            print("No videos found or extraction needs implementation")
+            print("No videos found")
 
     finally:
         if browser:
-            try:
-                # browser-use Browser uses .stop() to shutdown
-                await browser.stop()
-            except Exception as e:
-                logger.debug("Browser stop failed (expected if session already closed): %s", e)
+            await browser.close()
+        if playwright:
+            await playwright.stop()
         await controller.cleanup()
 
 
@@ -213,11 +217,9 @@ async def engage_with_scenario(  # noqa: PLR0914
         logger.error("Profile '%s' does not have a channel_url configured", profile_name)
         sys.exit(1)
 
-    controller = _create_controller(profile.chrome_profile_path)
-    llm = create_llm(config.llm)
+    controller = ChromeController()
 
     # Initialize safety tools
-    # TODO(@user): Make rate limiting configurable via config.yaml (FIX002, TD003) # noqa: FIX002, TD003, E501
     rate_limiter = RateLimiter(
         actions_per_minute=10,
         min_delay=2.0,
@@ -225,12 +227,13 @@ async def engage_with_scenario(  # noqa: PLR0914
     )
     state = EngagementState()
 
+    playwright = None
     browser = None
 
     try:
         cdp_url = await controller.ensure_browser()
-        browser = Browser(cdp_url=cdp_url)
-        platform = YouTubePlatform(browser, llm)
+        playwright, browser, page = await get_playwright_page(cdp_url)
+        platform = YouTubePlatform(page)
 
         # Get discovery parameters
         max_videos, days_ago = _get_discovery_params(scenario.discovery)
@@ -272,41 +275,10 @@ async def engage_with_scenario(  # noqa: PLR0914
 
     finally:
         if browser:
-            try:
-                await browser.stop()
-            except Exception as e:
-                logger.debug("Browser stop failed: %s", e)
+            await browser.close()
+        if playwright:
+            await playwright.stop()
         await controller.cleanup()
-
-
-async def launch_auth_browser(profile_name: str) -> None:
-    """Launch Chrome for manual authentication.
-
-    Opens Chrome with the specified profile so users can log in to platforms manually.
-    The browser stays open until the user presses Enter.
-
-    Args:
-        profile_name: Browser profile to use
-    """
-    config = load_config()
-
-    if profile_name not in config.profiles:
-        logger.error("Profile '%s' not found in config", profile_name)
-        sys.exit(1)
-
-    profile = config.profiles[profile_name]
-    controller = _create_controller(profile.chrome_profile_path)
-
-    try:
-        await controller.ensure_browser()
-        print(f"\nChrome launched with profile '{profile_name}'")
-        print(f"Profile path: {profile.chrome_profile_path}")
-        print("\nPlease log in to your accounts in the browser window.")
-        print("Press Enter when you're done to close this session...")
-        input()  # noqa: ASYNC250 - intentional blocking for user interaction
-    finally:
-        await controller.cleanup()
-        print("Browser session closed.")
 
 
 def auto_engage(
@@ -332,17 +304,16 @@ async def run_task(task: EngagementTask, profile_name: str) -> None:
         logger.error("Profile '%s' not found in config", profile_name)
         sys.exit(1)
 
-    profile = config.profiles[profile_name]
-    controller = _create_controller(profile.chrome_profile_path)
-    llm = create_llm(config.llm)
+    controller = ChromeController()
+    playwright = None
     browser = None
 
     try:
         cdp_url = await controller.ensure_browser()
-        browser = Browser(cdp_url=cdp_url)
+        playwright, browser, page = await get_playwright_page(cdp_url)
 
         if task.platform == Platform.YOUTUBE:
-            platform = YouTubePlatform(browser, llm)
+            platform = YouTubePlatform(page)
         else:
             logger.error("Platform %s not supported yet", task.platform)
             sys.exit(1)
@@ -357,10 +328,9 @@ async def run_task(task: EngagementTask, profile_name: str) -> None:
 
     finally:
         if browser:
-            try:
-                await browser.stop()
-            except Exception as e:
-                logger.debug("Browser stop failed: %s", e)
+            await browser.close()
+        if playwright:
+            await playwright.stop()
         await controller.cleanup()
 
 
@@ -381,15 +351,6 @@ def main() -> None:
     init_parser = subparsers.add_parser("init", help="Create default configuration file")
     init_parser.add_argument(
         "--output", "-o", default="config.yaml", help="Output path for config file"
-    )
-
-    # Auth command
-    auth_parser = subparsers.add_parser("auth", help="Launch Chrome for manual login")
-    auth_parser.add_argument(
-        "--profile",
-        "-p",
-        default=config.defaults.profile_name,
-        help="Profile to use",
     )
 
     # Read command
@@ -426,9 +387,7 @@ def main() -> None:
     )
 
     # Engage command (new scenario-based)
-    engage_parser = subparsers.add_parser(
-        "engage", help="Execute engagement scenario on a profile"
-    )
+    engage_parser = subparsers.add_parser("engage", help="Execute engagement scenario on a profile")
     engage_parser.add_argument(
         "--profile",
         "-p",
@@ -476,8 +435,6 @@ def main() -> None:
     if args.command == "init":
         create_default_config(args.output)
         print(f"Created default configuration at {args.output}")
-    elif args.command == "auth":
-        asyncio.run(launch_auth_browser(args.profile))
     elif args.command == "list-videos":
         asyncio.run(list_channel_videos(args.profile, args.max))
     elif args.command == "engage":

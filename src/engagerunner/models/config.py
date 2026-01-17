@@ -84,9 +84,7 @@ class Defaults(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="DEFAULTS_", extra="ignore")
 
-    profile_name: str = Field(
-        default="youtube-main", description="Default browser profile name"
-    )
+    profile_name: str = Field(default="youtube-main", description="Default browser profile name")
     max_comments: int = Field(default=10, description="Default maximum comments to read")
     max_videos: int = Field(default=20, description="Default maximum videos to list")
     max_videos_auto_engage: int = Field(

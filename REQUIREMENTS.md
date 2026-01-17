@@ -26,7 +26,7 @@ The initial release focuses on **YouTube Comment Maintenance**—ensuring every 
     *   **Timestamp Parsing:** accurately identify "2 hours ago" vs "2 years ago".
     *   **Rate Limiting:** Enforced delays (randomized 2-5s) between actions.
     *   **State Tracking:** Remembers which comments were liked to avoid duplicates.
-    *   **Session Safety:** Connects to existing Chrome debugging port if open, or launches new instance if closed.
+*   **Browser Setup:** User starts Chrome manually with remote debugging enabled.
 
 ### ❌ Excluded from MVP
 *   Text replies (LLM-generated or template).
@@ -50,9 +50,29 @@ The initial release focuses on **YouTube Comment Maintenance**—ensuring every 
 
 ---
 
-## 4. Technical Architecture
+## 4. Chrome Profile Setup
 
-**Stack:** `Python 3.13`, `uv` (package manager), `browser-use` (agent control).
+Chrome 136+ blocks remote debugging on the default data directory for security. Copy your profile to a separate location:
+
+```bash
+# One-time setup
+mkdir -p ~/.engagerunner/chrome-profile
+cp ~/.config/google-chrome/Local\ State ~/.engagerunner/chrome-profile/
+cp -r ~/.config/google-chrome/<your-profile> ~/.engagerunner/chrome-profile/
+
+# Start Chrome for EngageRunner
+google-chrome --remote-debugging-port=9222 \
+  --user-data-dir=$HOME/.engagerunner/chrome-profile \
+  --profile-directory=<your-profile>
+```
+
+---
+
+## 5. Technical Architecture
+
+**Stack:** `Python 3.13`, `uv` (package manager), `Playwright` (browser automation).
+
+**MVP Approach:** Direct DOM automation via Playwright. No LLM required for simple like/heart actions.
 
 ### Configuration (`config.yaml`)
 ```yaml
@@ -83,8 +103,33 @@ settings:
 
 ---
 
-## 5. Success Criteria for MVP
-1.  **Reliable Connection:** Script detects if Chrome is running. If yes, attaches to it. If no, launches it.
-2.  **Accurate Discovery:** Correctly ignores videos/comments older than the configured limit (requires robust "relative time" parsing).
+## 6. LLM Configuration
+
+**When Used:** Complex scenarios only (text replies, content analysis). MVP actions (like/heart) use direct Playwright.
+
+**Provider:** OpenRouter. Free models by default.
+
+**Retry/Fallback Logic:**
+- On failure (timeout, rate limit, error), retry with next model in list
+- Cycle through configured free models before failing
+- Configurable retry count and model priority
+
+**Example Config:**
+```yaml
+llm:
+  provider: openrouter
+  models:
+    - google/gemini-2.0-flash-exp:free  # primary
+    - meta-llama/llama-3.2-3b-instruct:free  # fallback 1
+    - qwen/qwen3-4b:free  # fallback 2
+  max_retries: 3
+  timeout: 45
+```
+
+---
+
+## 7. Success Criteria for MVP
+1.  **Reliable Connection:** Connects to user-started Chrome with remote debugging enabled.
+2.  **Accurate Discovery:** Correctly ignores videos/comments older than the configured limit.
 3.  **No Embarrassing Duplicates:** Never likes the same comment twice, even if the script is restarted.
 4.  **Stealth:** Completes a "daily maintenance" run on 10 videos without triggering YouTube's "Action Unavailable" warning.
