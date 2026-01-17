@@ -16,8 +16,10 @@
 ## Essential Commands
 
 ```bash
+# Start Chrome with remote debugging (required before running commands)
+google-chrome --remote-debugging-port=9222
+
 # Core workflow
-uv run engagerunner auth --profile youtube-main     # Launch Chrome for manual login
 uv run engagerunner list-videos --max 10            # List videos from channel
 uv run engagerunner read <VIDEO_URL> --max 20       # Read comments from video
 uv run engagerunner engage -s simple_engagement     # Execute engagement scenario
