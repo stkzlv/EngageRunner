@@ -221,12 +221,19 @@ class YouTubePlatform(BasePlatform):
         await self.navigate_to_url(url)
 
         if is_short:
-            # Shorts: open comments panel
+            # Shorts: try to open comments panel
             if not await self._open_shorts_comments():
-                logger.warning("Could not open Shorts comments panel")
-                return []
-            await asyncio.sleep(1)
-        else:
+                # Fallback: convert to /watch?v= URL and retry as regular video
+                video_id = url.rsplit("/shorts/", maxsplit=1)[-1].split("?")[0]
+                watch_url = f"https://www.youtube.com/watch?v={video_id}"
+                logger.info("Shorts panel failed, falling back to %s", watch_url)
+                await self.navigate_to_url(watch_url)
+                self._is_short = False
+                is_short = False
+            else:
+                await asyncio.sleep(1)
+
+        if not is_short:
             # Regular video: scroll to load comments
             await self._scroll_page(2)
             await self._wait_for_selector(SELECTORS["comments_section"], wait_timeout=10000)
