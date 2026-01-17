@@ -70,6 +70,17 @@ class BasePlatform(ABC):
         """
 
     @abstractmethod
+    async def heart_comment(self, comment_index: int = 1) -> bool:
+        """Heart a comment (channel owner only).
+
+        Args:
+            comment_index: Position of the comment (1-based)
+
+        Returns:
+            True if successful, False otherwise
+        """
+
+    @abstractmethod
     async def post_reply(self, comment_id: str, text: str) -> bool:
         """Post a reply to a specific comment.
 

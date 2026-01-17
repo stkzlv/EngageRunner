@@ -178,14 +178,21 @@ async def _process_video_comments(  # noqa: PLR0913, PLR0917
                 # Rate Limit
                 await rate_limiter.wait_if_needed()
 
-                success = await platform.like_comment(idx)
+                # Call the appropriate method based on action type
+                if action.type == "heart":
+                    success = await platform.heart_comment(idx)
+                    action_verb = "Hearted"
+                else:
+                    success = await platform.like_comment(idx)
+                    action_verb = "Liked"
+
                 if success:
-                    print(f"  SUCCESS Liked: {comment.author}")
+                    print(f"  SUCCESS {action_verb}: {comment.author}")
                     state.mark_comment_processed(comment.id)
                     state.save()
                     processed += 1
                 else:
-                    print(f"  FAILURE Failed to like: {comment.author}")
+                    print(f"  FAILED to {action.type}: {comment.author}")
 
     return processed
 

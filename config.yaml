@@ -21,6 +21,5 @@ scenarios:
       method: recent_days
       limit: 7
     actions:
-      - type: like
-      - type: heart
+      - type: heart  # Default: channel owner's thank-you badge
     max_comments_per_video: 10

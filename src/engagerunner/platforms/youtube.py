@@ -25,9 +25,12 @@ SELECTORS = {
     "comment_author": "#author-text",
     "comment_text": "#content-text",
     "comment_timestamp": ".published-time-text a, #published-time-text",
+    # Like button (anyone can use)
     "comment_like_button": "#like-button button, ytd-toggle-button-renderer#like-button button",
-    # Alternative selectors for different YouTube layouts
     "comment_like_aria": '[aria-label*="like" i]',
+    # Heart button (channel owner only)
+    "comment_heart_button": "#creator-heart-button button",
+    "comment_heart_aria": '[aria-label="Heart"]',
 }
 
 # Timeouts in milliseconds
@@ -352,6 +355,57 @@ class YouTubePlatform(BasePlatform):
             logger.info("Successfully liked comment %d", comment_index)
         except Exception:
             logger.exception("Failed to like comment %d", comment_index)
+            return False
+        else:
+            return True
+
+    async def heart_comment(self, comment_index: int = 1) -> bool:
+        """Heart a YouTube comment (channel owner only).
+
+        Args:
+            comment_index: Position of the comment (1-based, 1=first comment)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        logger.info("Hearting comment at position %d", comment_index)
+
+        try:
+            # For Shorts, scope to the comments panel
+            if self._is_short:
+                panel_sel = '[target-id="engagement-panel-comments-section"]'
+                thread_sel = f"{panel_sel} {SELECTORS['comment_thread']}"
+            else:
+                thread_sel = SELECTORS["comment_thread"]
+
+            threads = self.page.locator(thread_sel)
+            thread_count = await threads.count()
+
+            if comment_index < 1 or comment_index > thread_count:
+                logger.error("Comment index %d out of range (1-%d)", comment_index, thread_count)
+                return False
+
+            thread = threads.nth(comment_index - 1)
+
+            # Scroll element into view
+            await thread.scroll_into_view_if_needed()
+            await asyncio.sleep(0.5)
+
+            # Find and click the heart button within this comment
+            heart_button = thread.locator(SELECTORS["comment_heart_button"]).first
+
+            if await heart_button.count() == 0:
+                # Try alternative selector
+                heart_button = thread.locator(SELECTORS["comment_heart_aria"]).first
+
+            if await heart_button.count() == 0:
+                logger.error("Heart button not found for comment %d", comment_index)
+                return False
+
+            await heart_button.click()
+            logger.info("Successfully hearted comment %d", comment_index)
+        except Exception:
+            logger.exception("Failed to heart comment %d", comment_index)
             return False
         else:
             return True

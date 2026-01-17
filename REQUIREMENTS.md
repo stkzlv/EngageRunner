@@ -20,8 +20,9 @@ The initial release focuses on **YouTube Comment Maintenance**—ensuring every 
     *   **Recent Posts:** Check comments on the last $N$ videos.
     *   **Time-Based:** Check comments on videos posted in the last $N$ days.
 *   **Engagement Actions:**
-    *   **Reactions:** Like (👍) and Heart (❤️).
-    *   *Note: No text replies in MVP to minimize risk.*
+    *   **Heart (❤️):** Default. Channel owner's "thank you" badge on comments.
+    *   **Like (👍):** Optional. Standard thumbs-up, available to anyone.
+    *   Both actions are configurable per scenario. No text replies in MVP.
 *   **Safety & Logic:**
     *   **Timestamp Parsing:** accurately identify "2 hours ago" vs "2 years ago".
     *   **Rate Limiting:** Enforced delays (randomized 2-5s) between actions.
