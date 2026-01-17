@@ -1,0 +1,25 @@
+profiles:
+  youtube-main:
+    platform: youtube
+    chrome_profile_path: ~/.config/google-chrome/stealtechhq@gmail.com
+    channel_url: https://www.youtube.com/@StealTech-r6b
+llm:
+  provider: openrouter
+  model: google/gemini-2.0-flash-exp:free
+settings:
+  headless: false
+  timeout: 30
+defaults:
+  profile_name: youtube-main
+  max_comments: 10
+  max_videos: 20
+  max_videos_auto_engage: 5
+  max_comments_auto_engage: 10
+scenarios:
+  simple_engagement:
+    discovery:
+      method: recent_days
+      limit: 7
+    actions:
+      - type: heart  # Default: channel owner's thank-you badge
+    max_comments_per_video: 10

@@ -1,7 +1,148 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "engagerunner"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI-powered social media engagement automation using browser-use"
 readme = "README.md"
-requires-python = ">=3.10"
-dependencies = []
+requires-python = ">=3.13"
+dependencies = [
+    "aiohttp>=3.12.15",
+    "browser-use>=0.11.3",
+    "playwright>=1.57.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "python-dotenv>=1.0.0",
+    "pyyaml>=6.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.8.0",
+    "mypy>=1.8.0",
+    "types-pyyaml>=6.0",
+    "safety>=3.7.0",
+    "vulture>=2.14",
+]
+
+[project.scripts]
+engagerunner = "engagerunner.cli:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+preview = true
+
+[tool.ruff.lint]
+# Enable comprehensive rule sets for production-quality code
+select = [
+    "F",      # Pyflakes - basic error detection
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "I",      # isort - import sorting
+    "N",      # pep8-naming
+    "UP",     # pyupgrade - modernize Python code
+    "YTT",    # flake8-2020 - Python 2020 checks
+    "ASYNC",  # flake8-async - async/await best practices
+    "B",      # flake8-bugbear - common bugs and design issues
+    "A",      # flake8-builtins - avoid shadowing builtins
+    "C4",     # flake8-comprehensions - better comprehensions
+    "DTZ",    # flake8-datetimez - datetime timezone safety
+    "T10",    # flake8-debugger - no debugger statements
+    "FA",     # flake8-future-annotations
+    "ISC",    # flake8-implicit-str-concat
+    "ICN",    # flake8-import-conventions
+    "LOG",    # flake8-logging - logging best practices
+    "G",      # flake8-logging-format
+    "PIE",    # flake8-pie - misc lints
+    "T20",    # flake8-print - no print statements
+    "PYI",    # flake8-pyi - type stub files
+    "PT",     # flake8-pytest-style
+    "Q",      # flake8-quotes
+    "RSE",    # flake8-raise
+    "RET",    # flake8-return - return statement best practices
+    "SLF",    # flake8-self - private member access
+    "SLOT",   # flake8-slots
+    "SIM",    # flake8-simplify - simplification suggestions
+    "TID",    # flake8-tidy-imports
+    "TCH",    # flake8-type-checking - TYPE_CHECKING blocks
+    "ARG",    # flake8-unused-arguments
+    "PTH",    # flake8-use-pathlib - prefer pathlib
+    "TD",     # flake8-todos - TODO comment quality
+    "FIX",    # flake8-fixme - FIXME/XXX/TODO tracking
+    "ERA",    # eradicate - no commented-out code
+    "PL",     # Pylint
+    "TRY",    # tryceratops - exception handling
+    "FLY",    # flynt - f-string conversion
+    "PERF",   # Perflint - performance anti-patterns
+    "FURB",   # refurb - modernization suggestions
+    "RUF",    # Ruff-specific rules
+]
+
+ignore = [
+    "ISC001",  # Conflicts with formatter
+    "COM812",  # Conflicts with formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",    # Allow assert in tests
+    "ARG",     # Allow unused arguments in tests (fixtures)
+    "PLR2004", # Allow magic values in tests
+    "DTZ005",  # Allow datetime.now() without tz in tests
+    "PLR6301", # Allow methods that could be static in tests
+]
+"main.py" = [
+    "T201",    # Allow print in placeholder main.py
+]
+"src/engagerunner/cli.py" = [
+    "T201",    # Allow print for CLI user output
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["engagerunner"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.mypy]
+python_version = "3.13"
+# Enable strict mode - comprehensive type checking
+strict = true
+
+# Strict mode enables:
+# - warn_unused_configs
+# - disallow_any_generics
+# - disallow_subclassing_any
+# - disallow_untyped_calls
+# - disallow_untyped_defs
+# - disallow_incomplete_defs
+# - check_untyped_defs
+# - disallow_untyped_decorators
+# - warn_redundant_casts
+# - warn_unused_ignores
+# - warn_return_any
+# - no_implicit_reexport
+# - strict_equality
+# - strict_concatenate
+
+# Additional strict settings
+warn_unreachable = true
+warn_no_return = true
+show_error_codes = true
+show_error_context = true
+pretty = true
+
+# Per-module overrides for third-party libraries without type stubs
+[[tool.mypy.overrides]]
+module = ["browser_use.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
